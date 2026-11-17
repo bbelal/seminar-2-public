@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seminar 2: Logistic Regression</title>
+
+<!-- Formulas: KaTeX, copied into lib/ so the slides work offline -->
+<link rel="stylesheet" href="lib/katex/katex.min.css">
+<script defer src="lib/katex/katex.min.js"></script>
+<script defer src="lib/katex/auto-render.min.js"></script>
+
+<style>
+  /* The same fonts and colours as Seminar 1; the fonts are copied into fonts/ */
+  @font-face { font-family: "Golos Text"; font-weight: 400; src: url("fonts/golos-text-latin-400-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Golos Text"; font-weight: 500; src: url("fonts/golos-text-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Golos Text"; font-weight: 600; src: url("fonts/golos-text-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Golos Text"; font-weight: 700; src: url("fonts/golos-text-latin-700-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Caveat"; font-weight: 500; src: url("fonts/caveat-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Caveat"; font-weight: 700; src: url("fonts/caveat-latin-700-normal.woff2") format("woff2"); }
+
+  :root {
+    --paper: #fbfcfd;
+    --grid: #e6ecf2;
+    --margin: #e8a59d;
+    --ink: #1b2333;
+    --ink-soft: #5b6577;
+    --line: #c3ccd9;
+    --pen: #1d3fa0;          /* handwritten notes: ballpoint blue */
+    --blue: #2a78d6;
+    --blue-pale: #e3eefb;
+    --versicolor: #2a78d6;   /* the same species colours as Seminar 1 */
+    --virginica: #8e4fc0;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: #e9edf2;
+    color: var(--ink);
+    font-family: "Golos Text", system-ui, "Segoe UI", sans-serif;
+    overflow: hidden;
+  }
+
+  /* ---------- The stage: every slide is drawn on a 1600 x 900 page, scaled to fit the screen ---------- */
+  #deck { position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; transform-origin: center; }
+  .slide {
+    position: absolute; inset: 0;
+    display: none; flex-direction: column;
+    padding: 70px 140px 70px 110px;
+    background-color: var(--paper);
+    /* a page of a squared exercise book, as in Seminar 1 */
+    background-image:
+      linear-gradient(to right, transparent 1490px, var(--margin) 1490px, var(--margin) 1492px, transparent 1492px),
+      linear-gradient(to right, var(--grid) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    box-shadow: 0 20px 60px -30px rgba(27, 35, 51, 0.45);
+  }
+  .slide.current { display: flex; }
+
+  h1 { margin: 0; font-size: 92px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+  h2 { margin: 0 0 36px; font-size: 56px; font-weight: 600; letter-spacing: -0.01em; }
+  p, li { font-size: 32px; line-height: 1.45; }
+  p { margin: 0 0 22px; }
+  ul { margin: 0; padding-left: 1.1em; }
+  li { margin-bottom: 14px; }
+  .soft { color: var(--ink-soft); }
+  .small { font-size: 24px; }
+  .note { font-size: 26px; color: var(--ink-soft); }
+  /* The slide number, bottom right (added by the script below; not on the title slide) */
+  .num { position: absolute; right: 150px; bottom: 36px; font-size: 24px; font-weight: 500; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+  .hand { font-family: "Caveat", cursive; font-weight: 700; color: var(--pen); }
+  .katex { font-size: 1.05em; }
+
+  /* Things that appear one by one: press the right arrow */
+  .step { opacity: 0; transition: opacity 0.25s; }
+  .step.shown { opacity: 1; }
+
+  /* A box for a definition or a theorem */
+  .box { border: 2px solid var(--line); border-radius: 14px; background: white; padding: 22px 30px; margin-bottom: 26px; font-size: 32px; }
+  .box .name { font-size: 24px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; }
+  .box p { margin: 0 0 8px; font-size: inherit; }
+  .box p:last-child { margin-bottom: 0; }
+  .box .katex-display { margin: 6px 0; }
+
+  /* Slide 1 */
+  .title { justify-content: center; }
+  .title .kicker { font-size: 28px; font-weight: 500; color: var(--ink-soft); margin-bottom: 28px; }
+  .title h1 { margin-bottom: 70px; }
+  .title .author { border-top: 2px solid var(--line); padding-top: 26px; max-width: 1250px; }
+  .title .name { font-size: 44px; font-weight: 700; margin: 0 0 6px; }
+  .title .job { font-size: 32px; color: var(--ink); margin: 0; }
+
+  /* Section dividers */
+  .part { justify-content: center; }
+  .part .kicker { font-size: 28px; font-weight: 500; color: var(--ink-soft); margin-bottom: 20px; }
+
+  /* Text on the left, a figure on the right */
+  .side { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: start; }
+  .side img { display: block; }
+
+  /* Two boxes side by side */
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 1300px; }
+  .two .box { margin-bottom: 0; }
+
+  .tag { display: inline-block; font-size: 24px; font-weight: 600; border-radius: 8px; padding: 2px 12px; }
+  .tag.versicolor { background: var(--blue-pale); color: #174a8c; }
+  .tag.virginica { background: #efe5f8; color: #5e2d8a; }
+
+  .big-formula { font-size: 40px; margin: 10px 0 30px; }
+  .key { font-weight: 700; color: var(--blue); }
+
+  /* Part B: trap questions, as in Seminar 1 */
+  .question { font-size: 36px; line-height: 1.45; max-width: 1250px; margin-bottom: 30px; }
+  .trap { font-family: "Caveat", cursive; font-weight: 700; color: var(--pen); font-size: 40px; }
+  /* Part C */
+  .tag.setosa { background: #e2f3ea; color: #1d6b48; }
+  table.data { align-self: flex-start; border-collapse: collapse; font-size: 28px; margin: 6px 0 26px; background: white; }
+  table.data th, table.data td { border: 2px solid var(--line); padding: 8px 26px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.data th { font-weight: 600; color: var(--ink-soft); font-size: 24px; }
+  .button {
+    display: inline-block; align-self: flex-start;
+    font-size: 40px; font-weight: 600; color: white; text-decoration: none;
+    background: var(--blue); border-radius: 14px; padding: 22px 46px;
+  }
+  .button:hover, .button:focus-visible { background: var(--pen); outline: none; }
+  .reading { padding: 14px 26px; margin-bottom: 16px; }
+  .reading a { color: var(--blue); font-weight: 600; }
+  .reading .when { margin-top: 4px; }
+  ol { margin: 0 0 16px; padding-left: 1.3em; }
+  ul.tight li { font-size: 28px; margin-bottom: 8px; line-height: 1.4; }
+  @media (prefers-reduced-motion: reduce) { .step { transition: none; } }
+  @media print { .step { opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="deck">
+
+  <!-- 1. Title -->
+  <section class="slide title">
+    <div class="kicker">Probability Theory for CS &middot; Seminar 2</div>
+    <h1>Logistic Regression</h1>
+    <div class="author">
+      <p class="name">Belal Alashqar</p>
+      <p class="job">PhD student, Phystech School of Applied Mathematics and Computer Science</p>
+    </div>
+  </section>
+
+  <!-- 2. Part A -->
+  <section class="slide part">
+    <div class="kicker">Part A</div>
+    <h1>The model</h1>
+  </section>
+
+  <!-- 3. The question -->
+  <section class="slide">
+    <h2>The question</h2>
+    <div class="side">
+      <div>
+        <ul>
+          <li><b>Binary classification:</b> two classes, 0 and 1.</li>
+          <li>\(\eta\): the <b>label</b>, a random variable with the values 0 and 1.</li>
+          <li>\(\xi = (\xi_1, \dots, \xi_d)\): the \(d\) <b>features</b>, a random vector. \(x \in \mathbb{R}^d\): its observed value.</li>
+        </ul>
+        <div class="box step" style="margin-top:20px">
+          <div class="name">Goal</div>
+          <p>Model \(P(\eta = 1 \mid \xi = x)\) as a function of \(x\).</p>
+        </div>
+        <p class="step note">Example: <span class="tag versicolor">versicolor</span> (\(\eta = 0\)) vs <span class="tag virginica">virginica</span> (\(\eta = 1\)), with \(d = 2\): \(x_1\) = petal length, \(x_2\) = petal width.</p>
+      </div>
+      <img class="step" src="img/iris-two-species.png" alt="Scatter plot of petal length against petal width for 50 versicolor and 50 virginica flowers: versicolor at the bottom left, virginica at the top right, overlapping a little in the middle" style="width:640px">
+    </div>
+  </section>
+
+  <!-- 4. Link to Seminar 1: Theorem 6.7 -->
+  <section class="slide">
+    <h2>Why a linear model? A link to Seminar 1</h2>
+    <div class="side">
+      <div style="max-width:780px">
+        <div class="box" style="font-size:26px; padding:18px 26px">
+          <div class="name">Theorem</div>
+          <p><b>Assume:</b> \(d = 1\); &nbsp;\(P(\eta = 1) = q \in (0, 1)\); &nbsp;given \(\eta = 0\), \(\xi \sim \mathcal{N}(a_0, \sigma^2)\); &nbsp;given \(\eta = 1\), \(\xi \sim \mathcal{N}(a_1, \sigma^2)\), with the <b>same</b> \(\sigma\).</p>
+          <p><b>Then</b></p>
+          \[P(\eta = 1 \mid \xi = x) = \frac{1}{1 + e^{-(\beta x + \alpha)}},\]
+          \[\text{where} \quad \beta = \frac{a_1 - a_0}{\sigma^2}, \qquad \alpha = \log\frac{q}{1 - q} - \frac{a_1^2 - a_0^2}{2\sigma^2}.\]
+          <p class="soft">Proof: Bayes' formula with a density, from Seminar 1.</p>
+        </div>
+        <p class="step" style="margin-bottom:12px">An <span class="key">affine function</span> \(\beta x + \alpha\) of \(x\), inside an S-shaped function.</p>
+        <p class="step note" style="font-size:24px; margin:0">Seminar 1's Gaussian naive Bayes had its own \(\sigma\) for each class and feature: here we add one assumption, the same \(\sigma\) for both classes. With \(d\) features, the same holds if the two classes share one covariance matrix.</p>
+      </div>
+      <figure style="margin:0; width:520px">
+        <img src="img/same-sigma.png" alt="Top: two normal PDFs with the same width, centred at 4 and at 6. Bottom: the probability of class 1 given x, an S-shaped curve rising from 0 to 1, equal to 0.5 at x = 5" style="width:520px">
+        <figcaption class="small soft">Top: the conditional PDFs of \(\xi\) given \(\eta = 0\) and given \(\eta = 1\). Bottom: \(P(\eta = 1 \mid \xi = x)\). Made-up numbers: \(q = 0.5\), \(a_0 = 4\), \(a_1 = 6\), \(\sigma = 0.8\).</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 5. Why not an affine function? -->
+  <section class="slide">
+    <h2>Why not just an affine function?</h2>
+    <div class="side">
+      <div style="max-width:720px">
+        <p>Try the simplest model:</p>
+        <p class="big-formula">\(P(\eta = 1 \mid \xi = x) = \beta^T x + \alpha\)</p>
+        <ul>
+          <li>\(\beta = (\beta_1, \dots, \beta_d) \in \mathbb{R}^d\): the <b>coefficient vector</b>.</li>
+          <li>\(\alpha \in \mathbb{R}\): the <b>intercept</b>.</li>
+          <li>\(\beta^T x = \sum_{j=1}^{d} \beta_j x_j\).</li>
+        </ul>
+        <p class="step" style="margin-top:20px"><b>Problem:</b> for many \(x\), \(\beta^T x + \alpha\) is below 0 or above 1. <span class="key">It is not a probability.</span></p>
+      </div>
+      <img src="img/affine.png" alt="The line 0.25 x minus 0.75 for x from 0 to 10: it is below 0 for x less than 3 and above 1 for x greater than 7" style="width:600px">
+    </div>
+  </section>
+
+  <!-- 6. The logistic function -->
+  <section class="slide">
+    <h2>The logistic function</h2>
+    <div class="side">
+      <div style="max-width:700px">
+        <div class="box">
+          <div class="name">Definition</div>
+          \[\operatorname{lgf}(\ell) = \frac{e^{\ell}}{1 + e^{\ell}} = \frac{1}{1 + e^{-\ell}}, \qquad \ell \in \mathbb{R}.\]
+        </div>
+        <ul>
+          <li>It maps every real number into \([0, 1]\).</li>
+          <li class="step">Also called the <b>sigmoid</b> function.</li>
+          <li class="step">The S-shaped function of slide 4 is this one: \(P(\eta = 1 \mid \xi = x) = \operatorname{lgf}(\beta x + \alpha)\).</li>
+        </ul>
+      </div>
+      <img src="img/logistic.png" alt="The logistic function for l from -8 to 8: an S-shaped curve rising from 0 to 1, equal to 0.5 at l = 0" style="width:620px">
+    </div>
+  </section>
+
+  <!-- 7. Why the logistic function is a good choice -->
+  <section class="slide">
+    <h2>Why is it a good choice?</h2>
+    <ol style="padding-left:1.2em; margin:0; max-width:1250px">
+      <li><b>Monotone.</b> For two feature vectors \(x, x' \in \mathbb{R}^d\):
+        \[\beta^T x + \alpha > \beta^T x' + \alpha \;\Longrightarrow\; \operatorname{lgf}(\beta^T x + \alpha) > \operatorname{lgf}(\beta^T x' + \alpha).\]
+      </li>
+      <li class="step"><b>Continuous.</b> Similar feature vectors \(\Rightarrow\) similar affine values \(\Rightarrow\) similar probabilities.</li>
+      <li class="step"><b>Saturates.</b> It flattens out: large negative values of the affine function give probabilities near 0, large positive values give probabilities near 1.</li>
+    </ol>
+  </section>
+
+  <!-- 8. The model -->
+  <section class="slide">
+    <h2>The logistic-regression model</h2>
+    <div class="box" style="max-width:1100px">
+      <div class="name">Model</div>
+      \[P(\eta = 1 \mid \xi = x) = \operatorname{lgf}(\beta^T x + \alpha), \qquad \beta \in \mathbb{R}^d, \; \alpha \in \mathbb{R}.\]
+      <p class="small soft">So \(P(\eta = 0 \mid \xi = x) = 1 - \operatorname{lgf}(\beta^T x + \alpha)\).</p>
+    </div>
+    <div class="step">
+      <p>An affine function, passed through a one-dimensional <b>link function</b> (here \(\operatorname{lgf}\)):</p>
+      <p>this kind of model is called a <span class="key">generalized linear model</span>.</p>
+    </div>
+  </section>
+
+  <!-- 9. Odds and logit -->
+  <section class="slide">
+    <h2>Logit = log of the odds</h2>
+    <p>Write \(p = P(\eta = 1 \mid \xi = x)\).</p>
+    <ul>
+      <li><b>Odds:</b> \(\dfrac{p}{1 - p}\), the probability of the event over the probability of its complement.</li>
+      <li class="step">If \(p = \operatorname{lgf}(\ell)\), then
+        \[\frac{p}{1 - p} = \frac{\operatorname{lgf}(\ell)}{1 - \operatorname{lgf}(\ell)} = e^{\ell}, \qquad \text{so} \qquad \ell = \log \frac{p}{1 - p}.\]
+        The input \(\ell\) of \(\operatorname{lgf}\) is called a <b>logit</b>: the <b>log odds</b>.
+      </li>
+    </ul>
+    <div class="box step" style="max-width:1100px; margin-top:10px">
+      <div class="name">In logistic regression</div>
+      \[\log \frac{P(\eta = 1 \mid \xi = x)}{1 - P(\eta = 1 \mid \xi = x)} = \beta^T x + \alpha.\]
+      <p class="small soft">The log odds are an affine function of the features.</p>
+    </div>
+  </section>
+
+  <!-- 10. Decision rule -->
+  <section class="slide">
+    <h2>The decision rule</h2>
+    <p><b>Assume</b> both kinds of mistake cost the same. Then predict the more likely class, \(\hat{c}\):</p>
+    <div class="box" style="max-width:1250px">
+      \[\hat{c} = 1 \iff p > 1 - p \iff p > 0.5 \iff \log\frac{p}{1 - p} > 0 \iff \beta^T x + \alpha > 0.\]
+      <p class="small soft">Otherwise \(\hat{c} = 0\). At \(p = 0.5\) exactly, the choice is a convention.</p>
+    </div>
+    <p class="step">To decide, we only need the <span class="key">sign of the affine function</span>.</p>
+  </section>
+
+  <!-- 11. Discriminative vs generative -->
+  <section class="slide">
+    <h2>Discriminative vs generative</h2>
+    <div class="two">
+      <div class="box">
+        <div class="name">Logistic regression</div>
+        <p>Models \(P(\eta \mid \xi)\) directly: the class given the features.</p>
+        <p class="hand" style="font-size:44px">discriminative</p>
+      </div>
+      <div class="box step">
+        <div class="name">Naive Bayes (Seminar 1)</div>
+        <p>Models the full joint distribution of the class and the features: \(P(\eta = c)\) and the distribution of \(\xi\) given \(\eta = c\).</p>
+        <p class="hand" style="font-size:44px">generative</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12. Part B -->
+  <section class="slide part">
+    <div class="kicker">Part B</div>
+    <h1>Fitting the model</h1>
+  </section>
+
+  <!-- 13. Recall: the likelihood -->
+  <section class="slide">
+    <h2>Recall: the likelihood</h2>
+    <ul style="max-width:1300px">
+      <li><b>Data:</b> \(z^{(1)}, \dots, z^{(m)}\), the observed values of random variables \(\zeta^{(1)}, \dots, \zeta^{(m)}\).</li>
+      <li><b>Parametric model:</b> a pmf \(p_\theta\) that depends on a parameter \(\theta\).</li>
+      <li><b>Assume i.i.d.:</b> \(\zeta^{(1)}, \dots, \zeta^{(m)}\) are independent and have the same distribution.</li>
+    </ul>
+    <div class="box step" style="max-width:1300px; margin-top:14px">
+      <div class="name">Definition</div>
+      \[\mathcal{L}(\theta) = P\big(\zeta^{(1)} = z^{(1)}, \dots, \zeta^{(m)} = z^{(m)}\big) = \prod_{i=1}^{m} p_\theta\big(z^{(i)}\big)\]
+      <p>The probability of the observed data, <b>seen as a function of the parameter</b> \(\theta\).</p>
+    </div>
+    <p class="step note">For a pdf \(f_\theta\): \(\mathcal{L}(\theta) = \prod_{i=1}^{m} f_\theta\big(z^{(i)}\big)\), the density of the data.</p>
+  </section>
+
+  <!-- 14. Recall: maximum likelihood -->
+  <section class="slide">
+    <h2>Recall: maximum likelihood</h2>
+    <div class="box" style="max-width:1300px">
+      <div class="name">Maximum-likelihood estimate</div>
+      \[\hat{\theta} = \operatorname*{argmax}_{\theta}\, \mathcal{L}(\theta) = \operatorname*{argmax}_{\theta}\, \log \mathcal{L}(\theta)\]
+      <p class="small soft">The parameter that makes the observed data most likely. Same point for both: \(\log\) is strictly increasing.</p>
+    </div>
+    <div class="side step" style="gap:30px">
+      <div style="max-width:560px">
+        <p style="margin-bottom:12px"><b>Example:</b> 100 data points, <b>60 ones</b> and <b>40 zeros</b>. Bernoulli model:</p>
+        <p style="font-size:28px; margin-bottom:8px">\(\mathcal{L}(\theta) = \theta^{60} (1 - \theta)^{40}\)</p>
+        <p style="font-size:28px">\(\log \mathcal{L}(\theta) = 60 \log \theta + 40 \log(1 - \theta)\)</p>
+        <p style="font-size:28px">\(\hat{\theta} = 0.6\)</p>
+      </div>
+      <img src="img/bernoulli-likelihood.png" alt="Left: the likelihood of theta, a narrow peak at theta = 0.6 whose height is about 6 times 10 to the power -30. Right: the log-likelihood of theta, a concave curve with its maximum, about -67, at theta = 0.6" style="width:720px">
+    </div>
+  </section>
+
+  <!-- 15. Link to Seminar 1 -->
+  <section class="slide">
+    <h2>You have done this before: Seminar 1</h2>
+    <p>Part of the training in Seminar 1 was maximum likelihood, with a <span class="key">closed form</span>, a formula:</p>
+    <ul>
+      <li>the estimate of the prior: the fraction of the training items in the class;</li>
+      <li>the iris means and variances: averages over the items of the class.</li>
+    </ul>
+    <p class="step note" style="margin-top:10px">The smoothed word and pixel probabilities of Seminar 1 are not maximum-likelihood estimates: Laplace smoothing changes them.</p>
+    <p class="step trap" style="margin-top:30px">Fitting logistic regression will not be so easy.</p>
+  </section>
+
+  <!-- 16. The logistic-regression likelihood -->
+  <section class="slide">
+    <h2>The logistic-regression likelihood</h2>
+    <p style="margin-bottom:14px"><b>Data:</b> \(m\) items \(\big(x^{(i)}, c^{(i)}\big)\): the feature vector \(x^{(i)} \in \mathbb{R}^d\) and the label \(c^{(i)} \in \{0, 1\}\) of item \(i\), observed values of \(\xi^{(i)}\) and \(\eta^{(i)}\).</p>
+    <div class="box" style="max-width:1320px; font-size:28px; padding:18px 28px">
+      <div class="name">Definition: a conditional likelihood</div>
+      \[\mathcal{L}(\alpha, \beta) = P\big(\eta^{(1)} = c^{(1)}, \dots, \eta^{(m)} = c^{(m)} \;\big|\; \xi^{(1)} = x^{(1)}, \dots, \xi^{(m)} = x^{(m)}\big)\]
+      <p class="small soft">The labels given the features, as a function of \(\alpha\) and \(\beta\). The features are not modelled: the model is discriminative.</p>
+    </div>
+    <div class="step" style="font-size:28px">
+      <p style="margin-bottom:6px; font-size:28px"><b>Assume</b> (1) the labels are mutually conditionally independent given all the features; (2) each label \(\eta^{(i)}\) is conditionally independent of the other items' features, given its own \(\xi^{(i)}\); (3) the model holds for every item. <b>Then</b></p>
+      \[\mathcal{L}(\alpha, \beta) = \prod_{\{i:\; c^{(i)} = 0\}} \Big(1 - p_{\alpha,\beta}\big(x^{(i)}\big)\Big) \prod_{\{i:\; c^{(i)} = 1\}} p_{\alpha,\beta}\big(x^{(i)}\big), \qquad p_{\alpha,\beta}(x) = \operatorname{lgf}(\beta^T x + \alpha).\]
+    </div>
+  </section>
+
+  <!-- 17. In one formula, and why the log -->
+  <section class="slide">
+    <h2>In one formula, and why the log</h2>
+    <p>The Bernoulli formula from Seminar 1, one factor per item:</p>
+    <p style="font-size:30px">\(\displaystyle \mathcal{L}(\alpha, \beta) = \prod_{i=1}^{m} p_{\alpha,\beta}\big(x^{(i)}\big)^{c^{(i)}} \Big(1 - p_{\alpha,\beta}\big(x^{(i)}\big)\Big)^{1 - c^{(i)}}\)</p>
+    <p class="step" style="font-size:30px">\(\displaystyle \log \mathcal{L}(\alpha, \beta) = \sum_{i=1}^{m} \Big[c^{(i)} \log p_{\alpha,\beta}\big(x^{(i)}\big) + \big(1 - c^{(i)}\big) \log\Big(1 - p_{\alpha,\beta}\big(x^{(i)}\big)\Big)\Big]\)</p>
+    <div class="box step" style="max-width:1300px; margin-top:16px">
+      <div class="name">Why the log</div>
+      <p>Iris: 100 flowers. With \(\alpha = 0\), \(\beta = 0\), every \(p_{\alpha,\beta}(x^{(i)}) = 0.5\), so</p>
+      <p>\(\mathcal{L}(0, 0) = 0.5^{100} \approx 7.9 \cdot 10^{-31}\) &nbsp;&nbsp;but&nbsp;&nbsp; \(\log \mathcal{L}(0, 0) \approx -69.3\).</p>
+      <p class="small soft">A product of many numbers between 0 and 1 is tiny: numerical problems. A sum of logs is not.</p>
+    </div>
+  </section>
+
+  <!-- 18. Trap question: no closed form -->
+  <section class="slide">
+    <h2>Trap question: a formula for \(\hat{\alpha}\), \(\hat{\beta}\)?</h2>
+    <p class="question">In Seminar 1, training was one formula: counts and averages. Can we write a formula for the maximum \(\hat{\alpha}, \hat{\beta}\) here?</p>
+    <div class="side step" style="gap:30px">
+      <div style="max-width:640px">
+        <p><span class="trap">No.</span></p>
+        <ul>
+          <li>\(\log \mathcal{L}\) is <b>concave</b>: shaped like a hill.</li>
+          <li>But its maximum has <b>no closed form</b>.</li>
+          <li>So we climb the hill step by step: an <span class="key">iterative method</span>.</li>
+        </ul>
+      </div>
+      <figure style="margin:0; width:640px">
+        <img src="img/iris-loglik.png" alt="Contour lines of the log-likelihood over the plane of alpha and beta: long narrow diagonal bands, with one maximum, marked by a star, near alpha = -44, beta = 9" style="width:640px">
+        <figcaption class="small soft">\(\log \mathcal{L}(\alpha, \beta)\) for the iris flowers, with \(d = 1\) feature, the petal length.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 19. The gradient -->
+  <section class="slide">
+    <h2>The gradient</h2>
+    <p>The partial derivatives of the log-likelihood:</p>
+    <div class="box" style="max-width:1300px">
+      \[\frac{\partial \log \mathcal{L}}{\partial \beta_j}(\alpha, \beta) = \sum_{i=1}^{m} \Big(c^{(i)} - p_{\alpha,\beta}\big(x^{(i)}\big)\Big)\, x^{(i)}_j, \qquad \frac{\partial \log \mathcal{L}}{\partial \alpha}(\alpha, \beta) = \sum_{i=1}^{m} \Big(c^{(i)} - p_{\alpha,\beta}\big(x^{(i)}\big)\Big).\]
+    </div>
+    <ul class="step">
+      <li>\(c^{(i)} - p_{\alpha,\beta}(x^{(i)})\): the <b>error</b> of item \(i\), how far the model's probability is from the label.</li>
+      <li>Each item pushes the parameters by its error, times its features.</li>
+    </ul>
+    <p class="step note">Try it: show that \(\operatorname{lgf}'(\ell) = \operatorname{lgf}(\ell)\,\big(1 - \operatorname{lgf}(\ell)\big)\), then use the chain rule.</p>
+  </section>
+
+  <!-- 20. Gradient ascent -->
+  <section class="slide">
+    <h2>Gradient ascent</h2>
+    <div class="box" style="max-width:1300px">
+      <div class="name">Algorithm</div>
+      <p>Start at \(\alpha^{(0)} = 0\), \(\beta^{(0)} = 0\). For \(t = 1, 2, \dots\), a fixed number of steps:</p>
+      \[\alpha^{(t)} = \alpha^{(t-1)} + \gamma\, \frac{\partial \log \mathcal{L}}{\partial \alpha}\big(\alpha^{(t-1)}, \beta^{(t-1)}\big),\]
+      \[\beta^{(t)}_j = \beta^{(t-1)}_j + \gamma\, \frac{\partial \log \mathcal{L}}{\partial \beta_j}\big(\alpha^{(t-1)}, \beta^{(t-1)}\big) \quad \text{for every } j.\]
+      <p class="small soft">\(\gamma > 0\): the <b>learning rate</b>, the size of the steps. Small steps uphill, in the direction of the gradient.</p>
+    </div>
+    <ul class="step">
+      <li>The same as <b>gradient descent</b> on the <b>negative log-likelihood</b> \(-\log \mathcal{L}\): small steps downhill.</li>
+      <li>\(-\log \mathcal{L}\) is the sum over the items of \(-\big[c^{(i)} \log p_{\alpha,\beta}(x^{(i)}) + (1 - c^{(i)}) \log\big(1 - p_{\alpha,\beta}(x^{(i)})\big)\big]\), called the <b>binary cross-entropy</b> in machine learning.</li>
+      <li class="soft">With big data: <b>stochastic gradient descent</b>, one random item per step.</li>
+    </ul>
+  </section>
+
+  <!-- 21. Gradient ascent at work -->
+  <section class="slide">
+    <h2>Gradient ascent at work</h2>
+    <img src="img/gradient-ascent.png" alt="Left: the contour lines of the log-likelihood with the path of gradient ascent, a red line from (0, 0) up the narrow ridge to the maximum near alpha = -44, beta = 9, with points at steps 0, 100, 1,000, 10,000 and 200,000. Right: the 100 iris flowers at height 0 (versicolor) and 1 (virginica) against petal length, and the curves of the model's probability after each of these steps: flat at 0.5 at step 0, then steeper and steeper S-curves" style="width:1300px">
+    <p class="small soft" style="margin-top:10px">Iris, petal length only. \(\gamma = 0.003\), 200,000 steps: \(\alpha^{(200\,000)} \approx -43.7\), \(\beta^{(200\,000)} \approx 8.98\); the maximum: \(\hat{\alpha} \approx -43.8\), \(\hat{\beta} \approx 9.00\).</p>
+    <p class="step"><span class="trap">Slow!</span>&nbsp; The hill is a long, narrow ridge: many small steps.</p>
+  </section>
+
+  <!-- 22. Part C -->
+  <section class="slide part">
+    <div class="kicker">Part C</div>
+    <h1>Iris with two features</h1>
+  </section>
+
+  <!-- 23. Two features, two problems -->
+  <section class="slide">
+    <h2>Two features, two problems</h2>
+    <div class="side">
+      <div style="max-width:560px">
+        <p><b>Features</b> (\(d = 2\)): \(x_1\) = petal length, \(x_2\) = petal width, in cm.</p>
+        <p><b>Problem 1:</b> <span class="tag setosa">setosa</span> (\(c = 0\)) vs <span class="tag versicolor">versicolor</span> (\(c = 1\)).</p>
+        <p><b>Problem 2:</b> <span class="tag versicolor">versicolor</span> (\(c = 0\)) vs <span class="tag virginica">virginica</span> (\(c = 1\)), as in Part A.</p>
+        <p class="step trap">Which problem is harder? Can you draw a line between the two species?</p>
+      </div>
+      <img src="img/iris-three-species.png" alt="All 150 iris flowers, petal length against petal width: setosa (green) in a small group at the bottom left, far from the others; versicolor (blue) in the middle; virginica (purple) at the top right, touching and overlapping versicolor" style="width:740px">
+    </div>
+  </section>
+
+  <!-- 24. Problem 1 -->
+  <section class="slide">
+    <h2>Problem 1: setosa vs versicolor</h2>
+    <p>Gradient ascent from Part B, now with \(d = 2\) features. All \(m = 100\) flowers, \(\gamma = 0.002\).</p>
+    <table class="data">
+      <tr><th>step \(t\)</th><th>\(\alpha^{(t)}\)</th><th>\(\beta^{(t)}_1\)</th><th>\(\beta^{(t)}_2\)</th><th>flowers on the wrong side</th></tr>
+      <tr><td>100</td><td>\(-2.40\)</td><td>0.76</td><td>1.06</td><td>0</td></tr>
+      <tr><td>1,000</td><td>\(-6.78\)</td><td>1.87</td><td>2.82</td><td>0</td></tr>
+      <tr><td>10,000</td><td>\(-11.74\)</td><td>3.25</td><td>4.85</td><td>0</td></tr>
+    </table>
+    <div class="box step" style="max-width:1300px">
+      <div class="name">Definition</div>
+      <p>The data are <b>linearly separable</b> if a line (in \(d\) dimensions: a hyperplane) separates the two classes with no mistakes on the data.</p>
+      <p class="small soft">Problem 1 is linearly separable.</p>
+    </div>
+  </section>
+
+  <!-- 25. Decision boundary -->
+  <section class="slide">
+    <h2>The decision boundary</h2>
+    <div class="box" style="max-width:1300px">
+      <div class="name">Definition</div>
+      <p>The <b>decision boundary</b> is the set \(\{x \in \mathbb{R}^d : \beta^T x + \alpha = 0\}\). The decision rule (Part A) predicts \(\hat{c} = 1\) on one side and \(\hat{c} = 0\) on the other.</p>
+      <p class="small soft">With \(d = 2\): the line \(\beta_1 x_1 + \beta_2 x_2 + \alpha = 0\).</p>
+    </div>
+    <p class="step"><b>How to draw it</b>, two ways:</p>
+    <ol class="step">
+      <li>Solve for the petal width: \(x_2 = -\dfrac{\beta_1 x_1 + \alpha}{\beta_2}\) (if \(\beta_2 \neq 0\)).</li>
+      <li>Draw the <b>contour line</b> \(p_{\alpha,\beta}(x) = 0.5\): the same line, because \(\operatorname{lgf}(\ell) = 0.5\) exactly when \(\ell = 0\).</li>
+    </ol>
+    <p class="step note">Problem 1 at \(t = 100{,}000\): \(x_2 \approx 2.44 - 0.684\, x_1\). The other contour lines, \(p_{\alpha,\beta}(x) =\) a constant, are parallel lines.</p>
+  </section>
+
+  <!-- 26. Not unique -->
+  <section class="slide">
+    <h2>Problem 1: many lines work</h2>
+    <div class="side">
+      <div style="max-width:420px">
+        <p>Three different lines. Each one puts <b>all 100 flowers</b> on the right side.</p>
+        <p class="step">For separable data the separating line is <b>not unique</b>.</p>
+      </div>
+      <img src="img/problem1-lines.png" alt="Setosa (green, bottom left) and versicolor (blue, top right) with three separating lines: the red line of gradient ascent at t = 100,000, the vertical dashed line petal length = 2.5, and the horizontal dotted line petal width = 0.8" style="width:900px">
+    </div>
+  </section>
+
+  <!-- 27. Problem 2 -->
+  <section class="slide">
+    <h2>Problem 2: versicolor vs virginica</h2>
+    <div class="side" style="gap:20px">
+      <div style="max-width:480px">
+        <p style="font-size:28px">\(\gamma = 0.002\), 1,000,000 steps. The maximum:</p>
+        <p style="font-size:28px">\(\hat{\alpha} \approx -45.27\), \(\hat{\beta} \approx (5.75,\ 10.45)\)</p>
+        <p style="font-size:28px" class="step"><b>6 of 100</b> flowers on the wrong side. Not linearly separable.</p>
+        <p class="step note">Thin lines: \(p_{\hat\alpha,\hat\beta}(x) = 0.1,\ 0.25,\ 0.75,\ 0.9\). Red: the boundary \(x_2 \approx 4.33 - 0.551\, x_1\).</p>
+      </div>
+      <img src="img/problem2-fit.png" alt="Versicolor (blue) and virginica (purple) with the fitted red line between them and four thin parallel contour lines. Six flowers near the line are circled: they are on the wrong side" style="width:900px">
+    </div>
+  </section>
+
+  <!-- 28. Trap question: can a curve get all 100 right? -->
+  <section class="slide">
+    <h2>Trap question: can a curve do better?</h2>
+    <p class="question">A line gets 6 flowers wrong. Can some curve, however wiggly, put all 100 flowers on the right side?</p>
+    <div class="step">
+      <p><span class="trap">No!</span>&nbsp; Flower 71 (versicolor) and flowers 127 and 139 (virginica) all measure</p>
+      <p class="big-formula">\(x = (4.8,\ 1.8)\).</p>
+      <p>Same features, different labels: every classifier gets at least one of them wrong.</p>
+    </div>
+    <p class="step note">That is why we model a <b>probability</b>: at this \(x\), the honest answer is neither 0 nor 1.</p>
+  </section>
+
+  <!-- 29. Polynomial features -->
+  <section class="slide">
+    <h2>Polynomial features</h2>
+    <div class="box" style="max-width:1320px">
+      <div class="name">Definition</div>
+      <p>The <b>polynomial features</b> of degree \(K\): \(\phi(x)\) = all products \(x_1^{k_1} x_2^{k_2}\) with \(1 \le k_1 + k_2 \le K\). For \(K = 2\):</p>
+      \[\phi(x) = \big(x_1,\ x_2,\ x_1^2,\ x_1 x_2,\ x_2^2\big).\]
+    </div>
+    <ul class="step">
+      <li>Model: \(P(\eta = 1 \mid \xi = x) = \operatorname{lgf}\big(\beta^T \phi(x) + \alpha\big)\), with one entry of \(\beta\) per entry of \(\phi(x)\).</li>
+      <li>Still logistic regression: <b>linear in \(\alpha\) and \(\beta\)</b>. Same likelihood, same gradient ascent, with \(\phi(x^{(i)})\) in place of \(x^{(i)}\).</li>
+      <li>The boundary \(\beta^T \phi(x) + \alpha = 0\) is a <b>curve</b> in the plane of \(x_1, x_2\).</li>
+    </ul>
+    <p class="step note">Example: only \(x_1^2, x_2^2\), with \(\beta = (1, 1)\), \(\alpha = -R^2\): the boundary \(x_1^2 + x_2^2 = R^2\) is a circle. Number of features: 5 for \(K = 2\), 14 for \(K = 4\), 65 for \(K = 10\).</p>
+  </section>
+
+  <!-- 30. Before and after phi -->
+  <section class="slide">
+    <h2>Before and after \(\phi(x) = (x_1^2,\ x_2^2)\)</h2>
+    <p class="small" style="margin-bottom:6px"><b>Made-up data</b>: 200 points in a square. Class 0 inside the circle with \(R = 1\), class 1 outside.</p>
+    <img src="img/poly-lift.png" alt="Left: points in the plane of x1 and x2, grey dots inside a red circle of radius 1, red crosses outside it. An arrow labelled phi points to the right picture: the same points at (x1 squared, x2 squared), all in the top-right corner; the grey dots are near the corner and a red straight line separates them from the red crosses" style="width:1150px">
+    <ul style="margin-top:4px; font-size:28px">
+      <li class="step">Red: the boundary \(x_1^2 + x_2^2 = 1\). A <b>circle</b> before \(\phi\), a <b>straight line</b> after.</li>
+      <li class="step">So logistic regression on \(\phi(x)\) draws a line on the right, which is a curve on the left.</li>
+      <li class="step note" style="font-size:24px">Why only the top-right corner on the right? \(x_1\) and \(-x_1\) give the same \(x_1^2\): the four quadrants fold onto one.</li>
+    </ul>
+  </section>
+
+  <!-- 31. Curves on iris -->
+  <section class="slide">
+    <h2>Problem 2 with curves</h2>
+    <img src="img/poly-iris.png" alt="Four pictures of versicolor and virginica with the boundary for degree K = 1 (a line, 6 of 100 wrong), K = 2 (a smooth curve, 3 wrong), K = 4 and K = 10 (wiggly curves that bend around single flowers, 1 wrong)" style="width:1340px">
+    <ul style="margin-top:14px">
+      <li>The <b>training error</b>, the fraction of the training items misclassified, goes down: 6%, 3%, 1%, 1%. Never 0: flowers 71, 127, 139.</li>
+      <li class="step">Is the wiggly \(K = 10\) curve better for <b>new</b> flowers? With 100 flowers, a test set of 20 is too small to tell: one flower is 5%.</li>
+    </ul>
+  </section>
+
+  <!-- 32. Overfitting -->
+  <section class="slide">
+    <h2>Overfitting</h2>
+    <p class="small" style="margin-bottom:6px"><b>Made-up data</b>, so that we can make many new items. Class 0: \(\xi_1, \xi_2\) independent \(\mathcal{N}(0, 1)\). Class 1: independent \(\mathcal{N}(0, 2^2)\).<br>40 training items, 5,000 test items.</p>
+    <img src="img/overfitting.png" alt="Left: the 40 training items and the K = 2 boundary, a smooth oval: training error 25%, test error 27%. Middle: the K = 10 boundary, wiggly islands around single items: training error 0%, test error 38%. Right: training error against K goes down to 0; test error is lowest at K = 2 and then goes up" style="width:1250px">
+    <div class="box step" style="max-width:1320px; padding:14px 26px; margin-top:6px">
+      <div class="name">Definition</div>
+      <p style="font-size:28px">A model that fits the training data very well but is too complex <b>overfits</b>: low training error, but a higher <b>test error</b> (the fraction of the test items misclassified, 1 &minus; accuracy).</p>
+    </div>
+  </section>
+
+  <!-- 33. To the notebooks -->
+  <section class="slide">
+    <h2>To the notebooks</h2>
+    <div style="display:flex; gap:30px">
+      <a class="button" href="http://localhost:8888/lab/tree/notebooks/problem1.ipynb" target="_blank" rel="noopener">Problem 1 &rarr;</a>
+      <a class="button" href="http://localhost:8888/lab/tree/notebooks/problem2.ipynb" target="_blank" rel="noopener">Problem 2 &rarr;</a>
+    </div>
+    <p class="small soft" style="margin:10px 0 22px">Opens <code>notebooks/problem1.ipynb</code> and <code>notebooks/problem2.ipynb</code> in JupyterLab, started in the project folder (port 8888).</p>
+    <p class="step"><span class="trap">Challenge: in the made-up data, use 400 training items instead of 40. What happens to the gap between the two curves?</span></p>
+  </section>
+
+</div>
+
+<script>
+// ---------------------------------------------------------------- The slide engine (the same as Seminar 1)
+//
+// Keys:  right arrow, space, Page Down = next step or next slide
+//        left arrow, Page Up = back one slide        Home / End = first / last slide
+//        F = full screen
+// The address ends with #N, the number of the slide on screen (1, 2, 3, ...).
+
+const slides = [...document.querySelectorAll(".slide")];
+let current = 0;
+
+// Number every slide except the title slide: "n / m", n = the same number as #N in the address, m = the number of slides
+slides.forEach((s, k) => {
+  if (k === 0) return;
+  const num = document.createElement("div");
+  num.className = "num";
+  num.textContent = `${k + 1} / ${slides.length}`;
+  s.appendChild(num);
+});
+
+// The page is 1600 x 900: scale it to fit the window
+function fit() {
+  const scale = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+  document.getElementById("deck").style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+// Show slide n. With all = true, all its steps are shown (used when going back).
+function show(n, all = false) {
+  current = Math.max(0, Math.min(slides.length - 1, n));
+  slides.forEach((s, k) => s.classList.toggle("current", k === current));
+  slides[current].querySelectorAll(".step").forEach(el => el.classList.toggle("shown", all));
+  history.replaceState(null, "", "#" + (current + 1));
+}
+
+function next() {
+  const hidden = slides[current].querySelector(".step:not(.shown)");
+  if (hidden) hidden.classList.add("shown");     // first reveal the next step...
+  else if (current < slides.length - 1) show(current + 1);   // ...then go to the next slide
+}
+
+function back() { if (current > 0) show(current - 1, true); }
+
+document.addEventListener("keydown", event => {
+  if (["ArrowRight", " ", "PageDown"].includes(event.key)) { event.preventDefault(); next(); }
+  if (["ArrowLeft", "PageUp"].includes(event.key)) { event.preventDefault(); back(); }
+  if (event.key === "Home") show(0);
+  if (event.key === "End") show(slides.length - 1, true);
+  if (event.key === "f") document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen();
+});
+
+// A click anywhere (except on a link) also goes forward
+document.addEventListener("click", event => { if (!event.target.closest("a")) next(); });
+
+window.addEventListener("resize", fit);
+window.addEventListener("hashchange", () => show(parseInt(location.hash.slice(1), 10) - 1 || 0, true));
+
+fit();
+show((parseInt(location.hash.slice(1), 10) || 1) - 1, true);
+
+// Formulas: \( ... \) inside a line, \[ ... \] on their own line
+window.addEventListener("DOMContentLoaded", () => {
+  renderMathInElement(document.body, {
+    delimiters: [{ left: "\\[", right: "\\]", display: true }, { left: "\\(", right: "\\)", display: false }],
+  });
+});
+</script>
+</body>
+</html>

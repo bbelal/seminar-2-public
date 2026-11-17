@@ -1,0 +1,9 @@
+# Python libraries for Seminar 2.
+# Install them with:  pip install -r requirements.txt
+# Tested with Python 3.13 and these versions (older versions were not tested).
+
+numpy>=2.5           # arrays; logistic regression and gradient ascent from scratch
+pandas>=3.0          # tables in the notebooks
+matplotlib>=3.11     # plots in the notebooks
+scikit-learn>=1.9    # iris data; logistic regression; polynomial features
+jupyterlab>=4.0      # to open and run the notebooks
